@@ -17,6 +17,7 @@ FORMAT_SAVE: str = 'ms'
 directory_source: str = ''
 directory_receiver: str = ''
 format_file: str = 'mp3'
+copying_all_files: bool = False
 
 
 def finish(window=None) -> None:
@@ -86,19 +87,19 @@ def open_pre_filled() -> None:
     list_ms_var = tkinter.Variable(value=list_ms)
     ms_listbox = tkinter.Listbox(master=window_open, listvariable=list_ms_var)
     ms_listbox.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
-    button = ttk.Button(
+    button_open = ttk.Button(
         master=window_open,
         text='Открыть и применить',
         command=lambda: open_file(ms_listbox, window_open, label_name_window),
     )
-    button.pack(anchor='nw', padx=PAD, pady=PAD)
+    button_open.pack(anchor='nw', padx=PAD, pady=PAD)
     window_open.grab_set()  # захватываем пользовательский ввод
 
 
-def save_file(entry, window_save):
+def save_file(entry_save, window_save):
     """Сохраняет файл, закрывает окно для сохранений."""
     create_folder_save()
-    name = entry.get()
+    name = entry_save.get()
     file = open(file=f'save/{name}.ms', mode='w')
     line = f'{directory_source}\n{directory_receiver}\n{format_file}'
     file.write(line)
@@ -121,14 +122,14 @@ def save_pre_filled():
         master=window_save, text='Введите название файла'
     )
     label_name_window.pack(anchor='nw', padx=PAD, pady=PAD)
-    entry = ttk.Entry(master=window_save, width=33)
-    entry.pack(anchor='nw', padx=PAD, pady=PAD)
-    button = ttk.Button(
+    entry_save = ttk.Entry(master=window_save, width=33)
+    entry_save.pack(anchor='nw', padx=PAD, pady=PAD)
+    button_save = ttk.Button(
         master=window_save,
         text='Сохранить',
-        command=lambda: save_file(entry, window_save),
+        command=lambda: save_file(entry_save, window_save),
     )
-    button.pack(anchor='nw', padx=PAD, pady=PAD)
+    button_save.pack(anchor='nw', padx=PAD, pady=PAD)
     window_save.grab_set()  # захватываем пользовательский ввод
 
 
@@ -185,10 +186,10 @@ def get_directory_receiver(label):
     label['text'] = directory_receiver
 
 
-def get_format_file(entry, label):
+def get_format_file(entry_format, label):
     """Открывает диалоговое окно с проводником. Выбирает куда копирует"""
     global format_file
-    format_file = entry.get()
+    format_file = entry_format.get()
     label['text'] = format_file
 
 
@@ -205,11 +206,11 @@ def create_frame_source():
         master=frame, name='label_directory_source', text=directory_source
     )
     label_directory_source.pack(anchor='nw')
-    directory_botton = ttk.Button(
+    botton_directory_source = ttk.Button(
         master=frame, text='Откуда копируем',
         command=lambda: get_directory_source(label_directory_source),
     )
-    directory_botton.pack(anchor='nw')
+    botton_directory_source.pack(anchor='nw')
     return frame
 
 
@@ -226,12 +227,36 @@ def create_frame_receiver():
         master=frame, name='label_directory_receiver', text=directory_receiver
     )
     label_directory_receiver.pack(anchor='nw')
-    directory_botton = ttk.Button(
+    botton_directory_receiver = ttk.Button(
         master=frame, text='Куда копируем',
         command=lambda: get_directory_receiver(label_directory_receiver),
     )
-    directory_botton.pack(anchor='nw')
+    botton_directory_receiver.pack(anchor='nw')
     return frame
+
+
+def activate_deactivate(check_all_format):
+    """Активирует и деактивирует поля в зависимости от чекбокса."""
+    global copying_all_files
+    label_format = window_main.nametowidget(
+        'frame_entry_format.label_format'
+    )
+    entry_format = window_main.nametowidget(
+        'frame_entry_format.entry_format'
+    )
+    button_entry_format = window_main.nametowidget(
+        'frame_entry_format.button_entry_format'
+    )
+    if check_all_format:
+        label_format['state'] = 'disabled'
+        entry_format['state'] = 'disabled'
+        button_entry_format['state'] = 'disabled'
+        copying_all_files = True
+    else:
+        label_format['state'] = 'enabled'
+        entry_format['state'] = 'enabled'
+        button_entry_format['state'] = 'enabled'
+        copying_all_files = False
 
 
 def create_frame_entry_format():
@@ -244,17 +269,27 @@ def create_frame_entry_format():
     label_name_frame = ttk.Label(
         master=frame, text='Введите формат копируемых файлов')
     label_name_frame.pack(anchor='nw')
+    check_all_format = tkinter.IntVar()
+    checkbutton_all_format = ttk.Checkbutton(
+        master=frame,
+        text='Все файлы',
+        variable=check_all_format,
+        command=lambda: activate_deactivate(check_all_format.get()),
+    )
+    checkbutton_all_format.pack(anchor='nw')
     label_format = ttk.Label(
         master=frame, name='label_format', text=format_file
     )
     label_format.pack(anchor='nw')
-    entry = ttk.Entry(master=frame, width=50)
-    entry.pack(anchor='nw', padx=PAD, pady=PAD)
-    button = ttk.Button(
-        master=frame, text='Ввод',
-        command=lambda: get_format_file(entry, label_format),
+    entry_format = ttk.Entry(master=frame, name='entry_format', width=50)
+    entry_format.pack(anchor='nw', padx=PAD, pady=PAD)
+    button_entry_format = ttk.Button(
+        master=frame,
+        text='Ввод',
+        name='button_entry_format',
+        command=lambda: get_format_file(entry_format, label_format),
     )
-    button.pack(anchor='nw')
+    button_entry_format.pack(anchor='nw')
     return frame
 
 
@@ -276,10 +311,12 @@ def copy_file() -> None:
             files for files in list_files_source
             if files not in list_files_receiver
         ]
-        filtered_files_to_copy: list[str] = [
-            files for files in files_to_copy if files.endswith(substring_end)
-        ]
-        for files in filtered_files_to_copy:
+        if not copying_all_files:
+            files_to_copy = [
+                files for files in files_to_copy
+                if files.endswith(substring_end)
+            ]
+        for files in files_to_copy:
             paht_to_files = fr'{directory_source}\{files}'
             shutil.copy2(paht_to_files, directory_receiver)
 
