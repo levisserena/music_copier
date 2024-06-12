@@ -5,13 +5,13 @@
 import os
 import shutil
 import tkinter
-from tkinter import filedialog
-from tkinter import messagebox
-from tkinter import ttk
+from tkinter import filedialog, messagebox, ttk
 
 
 PADDING: tuple[float, ...] = (5, 5, 5, 5)
 PAD: int = 5
+DIR_SAVE: str = 'save'
+FORMAT_SAVE: str = 'ms'
 
 # Переменные.
 directory_source: str = ''
@@ -19,25 +19,123 @@ directory_receiver: str = ''
 format_file: str = 'mp3'
 
 
-def finish():
-    """Остановит работу окна."""
+def finish(window=None) -> None:
+    """Остановит работу окна или программы."""
+    if not window:
+        exit(1)
+    window.grab_release()  # Возвращаем контроль.
     window.destroy()
 
 
-def open_pre_filled():
-    """Открывает файл конфигурации, с предварительно заполнеными полями."""
-    pass
+def create_folder_save():
+    """Если нет папки для сохранений конфигураций, то она будет создана."""
+    if not os.path.isdir(f'{DIR_SAVE}'):
+        os.mkdir(f'{DIR_SAVE}')
+
+
+def open_file(ms_listbox, window_open, label_name_window):
+    """Открывает файл конфигурации и применяет инструкции из него."""
+    global directory_source
+    global directory_receiver
+    global format_file
+    selection = ms_listbox.curselection()
+    if selection:
+        file_ms = ms_listbox.get(selection)
+        file = open(file=f'save/{file_ms}.ms', mode='r')
+        directory_source = file.readline().strip()
+        directory_receiver = file.readline().strip()
+        format_file = file.readline().strip()
+        label_directory_source = window_main.nametowidget(
+            'frame_source.label_directory_source'
+        )
+        label_directory_receiver = window_main.nametowidget(
+            'frame_receiver.label_directory_receiver'
+        )
+        label_format = window_main.nametowidget(
+            'frame_entry_format.label_format'
+        )
+        label_directory_source['text'] = directory_source
+        label_directory_receiver['text'] = directory_receiver
+        label_format['text'] = format_file
+        finish(window_open)
+    else:
+        label_name_window['text'] = 'Ну выбери что нибудь!'
+
+
+def open_pre_filled() -> None:
+    """Открывает окно для выбора файла конфигурациию"""
+    create_folder_save()
+    list_in_save: list[str] = os.listdir(DIR_SAVE)
+    substring_end_save: str = f'.{FORMAT_SAVE}'
+    list_ms: list[str] = [
+        ms.rstrip(substring_end_save) for ms in list_in_save
+        if ms.endswith(substring_end_save)
+    ]
+    window_open = tkinter.Toplevel()
+    window_open.title('Открыть')
+    window_open.geometry('300x270')
+    window_open.resizable(False, False)
+    window_open.protocol(
+        'WO_DELETE_WINDOW',
+        func=lambda: finish(window_open)
+    )
+    label_name_window = ttk.Label(
+        master=window_open, text='Выберите файл'
+    )
+    label_name_window.pack(anchor='nw', padx=PAD, pady=PAD)
+    list_ms_var = tkinter.Variable(value=list_ms)
+    ms_listbox = tkinter.Listbox(master=window_open, listvariable=list_ms_var)
+    ms_listbox.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
+    button = ttk.Button(
+        master=window_open,
+        text='Открыть и применить',
+        command=lambda: open_file(ms_listbox, window_open, label_name_window),
+    )
+    button.pack(anchor='nw', padx=PAD, pady=PAD)
+    window_open.grab_set()  # захватываем пользовательский ввод
+
+
+def save_file(entry, window_save):
+    """Сохраняет файл, закрывает окно для сохранений."""
+    create_folder_save()
+    name = entry.get()
+    file = open(file=f'save/{name}.ms', mode='w')
+    line = f'{directory_source}\n{directory_receiver}\n{format_file}'
+    file.write(line)
+    file.close()
+    finish(window_save)
+    messagebox.showinfo(title='Информация', message=f'Файл {name} сохранен.')
 
 
 def save_pre_filled():
-    """Сохраняет файл конфигурации, с предварительно заполнеными полями."""
-    pass
+    """Открывает окно для сохранение конфигурации."""
+    window_save = tkinter.Toplevel()
+    window_save.title('Сохранить')
+    window_save.geometry('240x100')
+    window_save.resizable(False, False)
+    window_save.protocol(
+        'WS_DELETE_WINDOW',
+        func=lambda: finish(window_save)
+    )
+    label_name_window = ttk.Label(
+        master=window_save, text='Введите название файла'
+    )
+    label_name_window.pack(anchor='nw', padx=PAD, pady=PAD)
+    entry = ttk.Entry(master=window_save, width=33)
+    entry.pack(anchor='nw', padx=PAD, pady=PAD)
+    button = ttk.Button(
+        master=window_save,
+        text='Сохранить',
+        command=lambda: save_file(entry, window_save),
+    )
+    button.pack(anchor='nw', padx=PAD, pady=PAD)
+    window_save.grab_set()  # захватываем пользовательский ввод
 
 
 def setting_program():
     """Настройка программы."""
     message = 'Тут пока нечего нет. :('
-    messagebox.showwarning(title="Информация", message=message)
+    messagebox.showwarning(title='Информация', message=message)
 
 
 def about_program():
@@ -47,17 +145,17 @@ def about_program():
         'Разработал Акчурин Лев.\n'
         '06.2024\n'
     )
-    messagebox.showinfo(title="Информация", message=message)
+    messagebox.showinfo(title='Информация', message=message)
 
 
-window = tkinter.Tk()
-window.geometry('600x400')
-window.resizable(False, False)  # Запрещает растягивать окно.
-window.title('Music Copier LS')
+window_main = tkinter.Tk()
+window_main.geometry('600x400')
+window_main.resizable(False, False)  # Запрещает растягивать окно.
+window_main.title('Music Copier LS')
 icon = tkinter.PhotoImage(file='icon.png')
-window.iconphoto(False, icon)
-window.protocol('WM_DELETE_WINDOW', finish)
-window.option_add("*tearOff", tkinter.FALSE)  # Уберает из меню пунктир.
+window_main.iconphoto(False, icon)
+window_main.protocol('WM_DELETE_WINDOW', finish)
+window_main.option_add('*tearOff', tkinter.FALSE)  # Уберает из меню пунктир.
 
 main_menu = tkinter.Menu()
 file_menu = tkinter.Menu()
@@ -70,23 +168,21 @@ parameter_menu.add_command(label='Настройки', command=setting_program)
 parameter_menu.add_command(label='О программе', command=about_program)
 main_menu.add_cascade(label='Файл', menu=file_menu)
 main_menu.add_cascade(label='Опции', menu=parameter_menu)
-window.config(menu=main_menu)
+window_main.config(menu=main_menu)
 
 
 def get_directory_source(label):
     """Открывает диалоговое окно с проводником. Выбирает откуда копирует"""
     global directory_source
-    directory = filedialog.askdirectory()
-    directory_source = directory
-    label['text'] = directory
+    directory_source = filedialog.askdirectory()
+    label['text'] = directory_source
 
 
 def get_directory_receiver(label):
     """Открывает диалоговое окно с проводником. Выбирает куда копирует"""
     global directory_receiver
-    directory = filedialog.askdirectory()
-    directory_receiver = directory
-    label['text'] = directory
+    directory_receiver = filedialog.askdirectory()
+    label['text'] = directory_receiver
 
 
 def get_format_file(entry, label):
@@ -96,14 +192,18 @@ def get_format_file(entry, label):
     label['text'] = format_file
 
 
-def create_source_frame():
+def create_frame_source():
     """Создваёт фрейм с кнопкой получения адреса откуда копирование."""
-    frame = ttk.Frame(borderwidth=1, relief='solid', padding=PADDING)
+    frame = ttk.Frame(
+        borderwidth=1, name='frame_source', relief='solid', padding=PADDING
+    )
     label_name_frame = ttk.Label(
         master=frame, text='Выберете папку, откуда копировать'
     )
     label_name_frame.pack(anchor='nw')
-    label_directory_source = ttk.Label(master=frame, text=directory_source)
+    label_directory_source = ttk.Label(
+        master=frame, name='label_directory_source', text=directory_source
+    )
     label_directory_source.pack(anchor='nw')
     directory_botton = ttk.Button(
         master=frame, text='Откуда копируем',
@@ -113,14 +213,18 @@ def create_source_frame():
     return frame
 
 
-def create_receiver_frame():
+def create_frame_receiver():
     """Создваёт фрейм с кнопкой получения адреса куда копирование."""
-    frame = ttk.Frame(borderwidth=1, relief='solid', padding=PADDING)
+    frame = ttk.Frame(
+        borderwidth=1, name='frame_receiver', relief='solid', padding=PADDING
+    )
     label_name_frame = ttk.Label(
         master=frame, text='Выберете папку, куда копировать'
     )
     label_name_frame.pack(anchor='nw')
-    label_directory_receiver = ttk.Label(master=frame, text=directory_receiver)
+    label_directory_receiver = ttk.Label(
+        master=frame, name='label_directory_receiver', text=directory_receiver
+    )
     label_directory_receiver.pack(anchor='nw')
     directory_botton = ttk.Button(
         master=frame, text='Куда копируем',
@@ -130,13 +234,19 @@ def create_receiver_frame():
     return frame
 
 
-def create_entry_format_frame():
+def create_frame_entry_format():
     """Создваёт фрейм с полем для ввода формата копируемых файлов."""
-    frame = ttk.Frame(borderwidth=1,  relief='solid', padding=PADDING)
+    frame = ttk.Frame(
+        borderwidth=1,
+        name='frame_entry_format',
+        relief='solid', padding=PADDING,
+    )
     label_name_frame = ttk.Label(
         master=frame, text='Введите формат копируемых файлов')
     label_name_frame.pack(anchor='nw')
-    label_format = ttk.Label(master=frame, text=format_file)
+    label_format = ttk.Label(
+        master=frame, name='label_format', text=format_file
+    )
     label_format.pack(anchor='nw')
     entry = ttk.Entry(master=frame, width=50)
     entry.pack(anchor='nw', padx=PAD, pady=PAD)
@@ -148,12 +258,12 @@ def create_entry_format_frame():
     return frame
 
 
-directory_source_frame = create_source_frame()
-directory_source_frame.pack(anchor='nw', fill='x', padx=5, pady=5)
-directory_receiver_frame = create_receiver_frame()
-directory_receiver_frame.pack(anchor='nw', fill='x', padx=5, pady=5)
-format_frame = create_entry_format_frame()
-format_frame.pack(anchor='nw', fill='x', padx=5, pady=5)
+directory_source_frame = create_frame_source()
+directory_source_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
+directory_receiver_frame = create_frame_receiver()
+directory_receiver_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
+format_frame = create_frame_entry_format()
+format_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
 
 
 def copy_file() -> None:
@@ -180,4 +290,4 @@ button_copy = ttk.Button(
     )
 button_copy.pack(anchor='center', padx=20, pady=6, ipadx=20, ipady=10)
 
-window.mainloop()
+window_main.mainloop()
