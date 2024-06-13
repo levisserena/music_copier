@@ -7,7 +7,6 @@ import shutil
 import tkinter
 from tkinter import filedialog, messagebox, ttk
 
-
 PADDING: tuple[float, ...] = (5, 5, 5, 5)
 PAD: int = 5
 DIR_SAVE: str = 'save'
@@ -42,29 +41,51 @@ def open_file(ms_listbox, window_open, label_name_window):
     selection = ms_listbox.curselection()
     if selection:
         file_ms = ms_listbox.get(selection)
-        file = open(file=f'save/{file_ms}.ms', mode='r')
-        directory_source = file.readline().strip()
-        directory_receiver = file.readline().strip()
-        format_file = file.readline().strip()
-        label_directory_source = window_main.nametowidget(
-            'frame_source.label_directory_source'
-        )
-        label_directory_receiver = window_main.nametowidget(
-            'frame_receiver.label_directory_receiver'
-        )
-        label_format = window_main.nametowidget(
-            'frame_entry_format.label_format'
-        )
-        label_directory_source['text'] = directory_source
-        label_directory_receiver['text'] = directory_receiver
-        label_format['text'] = format_file
-        finish(window_open)
+        try:
+            file = open(file=f'save/{file_ms}.ms', mode='r')
+            directory_source = file.readline().strip()
+            directory_receiver = file.readline().strip()
+            format_file = file.readline().strip()
+            label_directory_source = window_main.nametowidget(
+                'frame_source.label_directory_source'
+            )
+            label_directory_receiver = window_main.nametowidget(
+                'frame_receiver.label_directory_receiver'
+            )
+            label_format = window_main.nametowidget(
+                'frame_entry_format.label_format'
+            )
+            label_directory_source['text'] = directory_source
+            label_directory_receiver['text'] = directory_receiver
+            label_format['text'] = format_file
+            finish(window_open)
+        except FileNotFoundError:
+            label_name_window['text'] = ('Что-то пошло не так!\nКажется кто-то'
+                                         f'уже удалил файл {file_ms}.')
+            ms_listbox.delete(selection[0])
+    else:
+        label_name_window['text'] = 'Ну выбери что нибудь!'
+
+
+def delete_file(ms_listbox, window_open, label_name_window):
+    """Удаление файла конфигурации."""
+    selection = ms_listbox.curselection()
+    if selection:
+        file_ms = ms_listbox.get(selection)
+        path_delete = f'save/{file_ms}.ms'
+        try:
+            os.remove(path_delete)
+        except FileNotFoundError:
+            label_name_window['text'] = ('Что-то пошло не так!\nКажется кто-то'
+                                         f'уже удалил файл {file_ms}.')
+        finally:
+            ms_listbox.delete(selection[0])
     else:
         label_name_window['text'] = 'Ну выбери что нибудь!'
 
 
 def open_pre_filled() -> None:
-    """Открывает окно для выбора файла конфигурациию"""
+    """Открывает окно для выбора файла конфигурациию."""
     create_folder_save()
     list_in_save: list[str] = os.listdir(DIR_SAVE)
     substring_end_save: str = f'.{FORMAT_SAVE}'
@@ -74,7 +95,7 @@ def open_pre_filled() -> None:
     ]
     window_open = tkinter.Toplevel()
     window_open.title('Открыть')
-    window_open.geometry('300x270')
+    window_open.geometry('300x280')
     window_open.resizable(False, False)
     window_open.protocol(
         'WO_DELETE_WINDOW',
@@ -93,6 +114,14 @@ def open_pre_filled() -> None:
         command=lambda: open_file(ms_listbox, window_open, label_name_window),
     )
     button_open.pack(anchor='nw', padx=PAD, pady=PAD)
+    button_delete = tkinter.Button(
+        master=window_open,
+        text='Удалить запись',
+        command=lambda: delete_file(
+            ms_listbox, window_open, label_name_window
+        ),
+    )
+    button_delete.pack(anchor='nw', padx=PAD, pady=PAD)
     window_open.grab_set()  # захватываем пользовательский ввод
 
 
@@ -143,6 +172,7 @@ def about_program():
     """Информация о программе."""
     message = (
         'Программа для копирования файлов из одной папки в другую.\n'
+        'Программа копирует только те файлы, которых нет во второй папке.\n'
         'Разработал Акчурин Лев.\n'
         '06.2024\n'
     )
