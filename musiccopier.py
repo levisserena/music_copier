@@ -42,7 +42,7 @@ def open_file(ms_listbox, window_open, label_name_window):
     if selection:
         file_ms = ms_listbox.get(selection)
         try:
-            file = open(file=f'save/{file_ms}.ms', mode='r')
+            file = open(file=f'{DIR_SAVE}/{file_ms}.ms', mode='r')
             directory_source = file.readline().strip()
             directory_receiver = file.readline().strip()
             format_file = file.readline().strip()
@@ -72,7 +72,7 @@ def delete_file(ms_listbox, window_open, label_name_window):
     selection = ms_listbox.curselection()
     if selection:
         file_ms = ms_listbox.get(selection)
-        path_delete = f'save/{file_ms}.ms'
+        path_delete = f'{DIR_SAVE}/{file_ms}.ms'
         try:
             os.remove(path_delete)
         except FileNotFoundError:
@@ -84,7 +84,7 @@ def delete_file(ms_listbox, window_open, label_name_window):
         label_name_window['text'] = 'Ну выбери что нибудь!'
 
 
-def open_pre_filled() -> None:
+def open_configuration_filled() -> None:
     """Открывает окно для выбора файла конфигурациию."""
     create_folder_save()
     list_in_save: list[str] = os.listdir(DIR_SAVE)
@@ -125,19 +125,70 @@ def open_pre_filled() -> None:
     window_open.grab_set()  # захватываем пользовательский ввод
 
 
-def save_file(entry_save, window_save):
-    """Сохраняет файл, закрывает окно для сохранений."""
-    create_folder_save()
-    name = entry_save.get()
-    file = open(file=f'save/{name}.ms', mode='w')
+def still_writing(name_file, path_file, window_save, window_overwriting=None):
+    """Возвращает True если передано True."""
+    file = open(file=path_file, mode='w')
     line = f'{directory_source}\n{directory_receiver}\n{format_file}'
     file.write(line)
     file.close()
+    if window_overwriting:
+        finish(window_overwriting)
     finish(window_save)
-    messagebox.showinfo(title='Информация', message=f'Файл {name} сохранен.')
+    messagebox.showinfo(
+        title='Информация', message=f'Файл {name_file} сохранен.'
+    )
 
 
-def save_pre_filled():
+def overwriting_or_writing(name_file, path_file, window_save):
+    """
+    Открывает окно подтверждения перезаписи конфигурации и вызывает сохранение
+    файла.
+    """
+    if os.path.isfile(path_file):
+        window_overwriting = tkinter.Toplevel()
+        window_overwriting.title('Точно?')
+        window_overwriting.geometry('220x140')
+        window_overwriting.resizable(False, False)
+        window_overwriting.protocol(
+            'WOW_DELETE_WINDOW',
+            func=lambda: finish(window_overwriting)
+        )
+        label_name_window = ttk.Label(
+            master=window_overwriting,
+            text=f'Файл с именем {name_file} существует.\nПерезаписать?',
+        )
+        label_name_window.pack(anchor='nw', padx=PAD, pady=PAD)
+        button_yas = ttk.Button(
+            master=window_overwriting,
+            text='Да, перезапиши',
+            command=lambda: still_writing(
+                name_file, path_file, window_save, window_overwriting
+            ),
+        )
+        button_yas.pack(anchor='nw', padx=PAD, pady=PAD)
+        button_no = ttk.Button(
+            master=window_overwriting,
+            text='Нет, я передумал',
+            command=lambda: finish(window_overwriting),
+        )
+        button_no.pack(anchor='nw', padx=PAD, pady=PAD)
+        window_overwriting.grab_set()  # захватываем пользовательский ввод
+    else:
+        still_writing(name_file, path_file, window_save)
+
+
+def preparation_save_file(entry_save, window_save):
+    """
+    Создаст папку для сохранений, если её нет. Получит из ввода имя файла и
+    его путь. Перешлёт дальше.
+    """
+    create_folder_save()
+    name_file = entry_save.get()
+    path_file = f'{DIR_SAVE}/{name_file}.ms'
+    overwriting_or_writing(name_file, path_file, window_save)
+
+
+def save_configuration_filled():
     """Открывает окно для сохранение конфигурации."""
     window_save = tkinter.Toplevel()
     window_save.title('Сохранить')
@@ -156,7 +207,7 @@ def save_pre_filled():
     button_save = ttk.Button(
         master=window_save,
         text='Сохранить',
-        command=lambda: save_file(entry_save, window_save),
+        command=lambda: preparation_save_file(entry_save, window_save),
     )
     button_save.pack(anchor='nw', padx=PAD, pady=PAD)
     window_save.grab_set()  # захватываем пользовательский ввод
@@ -177,29 +228,6 @@ def about_program():
         '06.2024\n'
     )
     messagebox.showinfo(title='Информация', message=message)
-
-
-window_main = tkinter.Tk()
-window_main.geometry('600x400')
-window_main.resizable(False, False)  # Запрещает растягивать окно.
-window_main.title('Music Copier LS')
-icon = tkinter.PhotoImage(file='icon.png')
-window_main.iconphoto(False, icon)
-window_main.protocol('WM_DELETE_WINDOW', finish)
-window_main.option_add('*tearOff', tkinter.FALSE)  # Уберает из меню пунктир.
-
-main_menu = tkinter.Menu()
-file_menu = tkinter.Menu()
-file_menu.add_command(label='Открыть', command=open_pre_filled)
-file_menu.add_command(label='Сохранить', command=save_pre_filled)
-file_menu.add_separator()
-file_menu.add_command(label='Выйти', command=finish)
-parameter_menu = tkinter.Menu()
-parameter_menu.add_command(label='Настройки', command=setting_program)
-parameter_menu.add_command(label='О программе', command=about_program)
-main_menu.add_cascade(label='Файл', menu=file_menu)
-main_menu.add_cascade(label='Опции', menu=parameter_menu)
-window_main.config(menu=main_menu)
 
 
 def get_directory_source(label):
@@ -323,14 +351,6 @@ def create_frame_entry_format():
     return frame
 
 
-directory_source_frame = create_frame_source()
-directory_source_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
-directory_receiver_frame = create_frame_receiver()
-directory_receiver_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
-format_frame = create_frame_entry_format()
-format_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
-
-
 def copy_file() -> None:
     """Копирует файлы."""
     substring_end: str = f'.{format_file}'
@@ -350,6 +370,35 @@ def copy_file() -> None:
             paht_to_files = fr'{directory_source}\{files}'
             shutil.copy2(paht_to_files, directory_receiver)
 
+
+window_main = tkinter.Tk()
+window_main.geometry('600x400')
+window_main.resizable(False, False)  # Запрещает растягивать окно.
+window_main.title('Music Copier LS')
+icon = tkinter.PhotoImage(file='icon.png')
+window_main.iconphoto(False, icon)
+window_main.protocol('WM_DELETE_WINDOW', finish)
+window_main.option_add('*tearOff', tkinter.FALSE)  # Уберает из меню пунктир.
+
+main_menu = tkinter.Menu()
+file_menu = tkinter.Menu()
+file_menu.add_command(label='Открыть', command=open_configuration_filled)
+file_menu.add_command(label='Сохранить', command=save_configuration_filled)
+file_menu.add_separator()
+file_menu.add_command(label='Выйти', command=finish)
+parameter_menu = tkinter.Menu()
+parameter_menu.add_command(label='Настройки', command=setting_program)
+parameter_menu.add_command(label='О программе', command=about_program)
+main_menu.add_cascade(label='Файл', menu=file_menu)
+main_menu.add_cascade(label='Опции', menu=parameter_menu)
+window_main.config(menu=main_menu)
+
+directory_source_frame = create_frame_source()
+directory_source_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
+directory_receiver_frame = create_frame_receiver()
+directory_receiver_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
+format_frame = create_frame_entry_format()
+format_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
 
 button_copy = ttk.Button(
         text='Копировать!',
