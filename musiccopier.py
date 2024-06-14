@@ -64,7 +64,7 @@ def open_file(ms_listbox, window_open, label_name_window):
                                          f'уже удалил файл {file_ms}.')
             ms_listbox.delete(selection[0])
     else:
-        label_name_window['text'] = 'Ну выбери что нибудь!'
+        label_name_window['text'] = 'Ну выбери что-нибудь!'
 
 
 def delete_file(
@@ -122,11 +122,11 @@ def confirmation_deletion(ms_listbox, label_name_window):
         button_no_del.pack(anchor='nw', padx=PAD, pady=PAD)
         window_conf_del.grab_set()  # захватываем пользовательский ввод
     else:
-        label_name_window['text'] = 'Ну выбери что нибудь!'
+        label_name_window['text'] = 'Ну выбери что-нибудь!'
 
 
 def open_configuration_filled() -> None:
-    """Открывает окно для выбора файла конфигурациию."""
+    """Открывает окно для выбора файла конфигурации."""
     create_folder_save()
     list_in_save: list[str] = os.listdir(DIR_SAVE)
     substring_end_save: str = f'.{FORMAT_SAVE}'
@@ -228,7 +228,7 @@ def preparation_save_file(entry_save, window_save):
 
 
 def save_configuration_filled():
-    """Открывает окно для сохранение конфигурации."""
+    """Открывает окно для сохранения файла конфигурации."""
     window_save = tkinter.Toplevel()
     window_save.title('Сохранить')
     window_save.geometry('240x100')
@@ -270,28 +270,28 @@ def about_program():
 
 
 def get_directory_source(label):
-    """Открывает диалоговое окно с проводником. Выбирает откуда копирует"""
+    """Открывает диалоговое окно с проводником. Выбирает, откуда копирует."""
     global directory_source
     directory_source = filedialog.askdirectory()
     label['text'] = directory_source
 
 
 def get_directory_receiver(label):
-    """Открывает диалоговое окно с проводником. Выбирает куда копирует"""
+    """Открывает диалоговое окно с проводником. Выбирает, куда копирует."""
     global directory_receiver
     directory_receiver = filedialog.askdirectory()
     label['text'] = directory_receiver
 
 
-def get_format_file(entry_format, label):
+def get_format_file(entry_format, label_format):
     """Открывает диалоговое окно с проводником. Выбирает куда копирует"""
     global format_file
     format_file = entry_format.get()
-    label['text'] = format_file
+    label_format['text'] = format_file
 
 
 def create_frame_source():
-    """Создваёт фрейм с кнопкой получения адреса откуда копирование."""
+    """Создаёт фрейм с кнопкой получения адреса, откуда копирование."""
     frame = ttk.Frame(
         borderwidth=1, name='frame_source', relief='solid', padding=PADDING
     )
@@ -312,7 +312,7 @@ def create_frame_source():
 
 
 def create_frame_receiver():
-    """Создваёт фрейм с кнопкой получения адреса куда копирование."""
+    """Создаёт фрейм с кнопкой получения адреса, куда копирование."""
     frame = ttk.Frame(
         borderwidth=1, name='frame_receiver', relief='solid', padding=PADDING
     )
@@ -357,19 +357,25 @@ def activate_deactivate(check_all_format):
 
 
 def create_frame_entry_format():
-    """Создваёт фрейм с полем для ввода формата копируемых файлов."""
+    """Создвёт фрейм с полем для ввода формата копируемых файлов."""
     frame = ttk.Frame(
         borderwidth=1,
         name='frame_entry_format',
         relief='solid', padding=PADDING,
     )
     label_name_frame = ttk.Label(
-        master=frame, text='Введите формат копируемых файлов')
+        master=frame, text=(
+            'Введите формат копируемых файлов\nНажмите ввод с пустым полем, '
+            'если копировать будем файлы без расширения.\nУчтите - они '
+            'копируется отдельно.\nОстальные можно копировать вмести, вводя их'
+            ' расширения через пробел.'
+        )
+    )
     label_name_frame.pack(anchor='nw')
     check_all_format = tkinter.IntVar()
     checkbutton_all_format = ttk.Checkbutton(
         master=frame,
-        text='Все файлы',
+        text='Поставьте галочку, если хотите скопировать все файлы.',
         variable=check_all_format,
         command=lambda: activate_deactivate(check_all_format.get()),
     )
@@ -392,26 +398,36 @@ def create_frame_entry_format():
 
 def copy_file() -> None:
     """Копирует файлы."""
-    substring_end: str = f'.{format_file}'
+    substrings_end: list[str] = [
+        '.' + str_format for str_format in set(format_file.split(' '))
+        if str_format != ''
+    ]
     if directory_source and directory_receiver:
         list_files_source: list[str] = os.listdir(directory_source)
         list_files_receiver: list[str] = os.listdir(directory_receiver)
-        files_to_copy: list[str] = [
-            files for files in list_files_source
-            if files not in list_files_receiver
+        files_without_duplicates: list[str] = [
+            file for file in list_files_source
+            if file not in list_files_receiver
         ]
         if not copying_all_files:
-            files_to_copy = [
-                files for files in files_to_copy
-                if files.endswith(substring_end)
-            ]
-        for files in files_to_copy:
-            paht_to_files = fr'{directory_source}\{files}'
+            if format_file == '':
+                files_to_copy = [
+                    file for file in files_without_duplicates
+                    if file.find('.') == -1
+                ]
+            else:
+                files_to_copy = [
+                    file for file in files_without_duplicates
+                    for substring_end in substrings_end
+                    if file.endswith(substring_end)
+                ]
+        for file in files_to_copy:
+            paht_to_files = fr'{directory_source}\{file}'
             shutil.copy2(paht_to_files, directory_receiver)
 
 
 window_main = tkinter.Tk()
-window_main.geometry('600x400')
+window_main.geometry('480x430')
 window_main.resizable(False, False)  # Запрещает растягивать окно.
 window_main.title('Music Copier LS')
 icon = tkinter.PhotoImage(file='icon.png')
