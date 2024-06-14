@@ -67,19 +67,60 @@ def open_file(ms_listbox, window_open, label_name_window):
         label_name_window['text'] = 'Ну выбери что нибудь!'
 
 
-def delete_file(ms_listbox, window_open, label_name_window):
+def delete_file(
+    selection, file_ms, ms_listbox, label_name_window, window_conf_del
+):
     """Удаление файла конфигурации."""
+    path_delete = f'{DIR_SAVE}/{file_ms}.ms'
+    try:
+        os.remove(path_delete)
+    except FileNotFoundError:
+        label_name_window['text'] = ('Что-то пошло не так!\nКажется кто-то'
+                                     f'уже удалил файл {file_ms}.')
+    finally:
+        ms_listbox.delete(selection[0])
+        finish(window_conf_del)
+
+
+def confirmation_deletion(ms_listbox, label_name_window):
+    """
+    Попросит выбрать файл для удаления.
+    Откроет окно подтверждения удаления файла сохраненной конфигурации.
+    """
     selection = ms_listbox.curselection()
     if selection:
         file_ms = ms_listbox.get(selection)
-        path_delete = f'{DIR_SAVE}/{file_ms}.ms'
-        try:
-            os.remove(path_delete)
-        except FileNotFoundError:
-            label_name_window['text'] = ('Что-то пошло не так!\nКажется кто-то'
-                                         f'уже удалил файл {file_ms}.')
-        finally:
-            ms_listbox.delete(selection[0])
+        window_conf_del = tkinter.Toplevel()
+        window_conf_del.title('Точно удалить?')
+        window_conf_del.geometry('250x140')
+        window_conf_del.resizable(False, False)
+        window_conf_del.protocol(
+            'WCD_DELETE_WINDOW',
+            func=lambda: finish(window_conf_del)
+        )
+        label_name_window = ttk.Label(
+            master=window_conf_del, text=f'Удалить файл {file_ms}?'
+        )
+        label_name_window.pack(anchor='nw', padx=PAD, pady=PAD)
+        button_yas_del = ttk.Button(
+            master=window_conf_del,
+            text='Да, в топку его!',
+            command=lambda: delete_file(
+                selection,
+                file_ms,
+                ms_listbox,
+                label_name_window,
+                window_conf_del,
+            ),
+        )
+        button_yas_del.pack(anchor='nw', padx=PAD, pady=PAD)
+        button_no_del = ttk.Button(
+            master=window_conf_del,
+            text='Нет, я передумал',
+            command=lambda: finish(window_conf_del),
+        )
+        button_no_del.pack(anchor='nw', padx=PAD, pady=PAD)
+        window_conf_del.grab_set()  # захватываем пользовательский ввод
     else:
         label_name_window['text'] = 'Ну выбери что нибудь!'
 
@@ -117,16 +158,14 @@ def open_configuration_filled() -> None:
     button_delete = tkinter.Button(
         master=window_open,
         text='Удалить запись',
-        command=lambda: delete_file(
-            ms_listbox, window_open, label_name_window
-        ),
+        command=lambda: confirmation_deletion(ms_listbox, label_name_window),
     )
     button_delete.pack(anchor='nw', padx=PAD, pady=PAD)
     window_open.grab_set()  # захватываем пользовательский ввод
 
 
 def still_writing(name_file, path_file, window_save, window_overwriting=None):
-    """Возвращает True если передано True."""
+    """Создаёт файл сохранения конфигурации."""
     file = open(file=path_file, mode='w')
     line = f'{directory_source}\n{directory_receiver}\n{format_file}'
     file.write(line)
@@ -401,9 +440,9 @@ format_frame = create_frame_entry_format()
 format_frame.pack(anchor='nw', fill='x', padx=PAD, pady=PAD)
 
 button_copy = ttk.Button(
-        text='Копировать!',
-        command=copy_file,
-    )
+    text='Копировать!',
+    command=copy_file,
+)
 button_copy.pack(anchor='center', padx=20, pady=6, ipadx=20, ipady=10)
 
 window_main.mainloop()
